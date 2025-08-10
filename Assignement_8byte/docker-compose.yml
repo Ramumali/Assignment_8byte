@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: pipeline_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pipeline_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pipeline_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-pipeline_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  dagit:
+    image: dagster/dagster:1.7.8
+    container_name: dagit
+    depends_on:
+      - postgres
+    environment:
+      DAGSTER_HOME: /opt/dagster/home
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_DB: ${POSTGRES_DB:-pipeline_db}
+      DAGSTER_POSTGRES_USERNAME: ${POSTGRES_USER:-pipeline_user}
+      DAGSTER_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pipeline_pass}
+      ALPHA_VANTAGE_API_KEY: KY71G44UNO4W4XC9
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./workspace:/opt/dagster/app
+      - dagster_home:/opt/dagster/home
+    command: ["dagit", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app"]
+
+  dagster-daemon:
+    image: dagster/dagster:1.7.8
+    container_name: dagster-daemon
+    depends_on:
+      - dagit
+      - postgres
+    environment:
+      DAGSTER_HOME: /opt/dagster/home
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_DB: ${POSTGRES_DB:-pipeline_db}
+      DAGSTER_POSTGRES_USERNAME: ${POSTGRES_USER:-pipeline_user}
+      DAGSTER_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pipeline_pass}
+      ALPHA_VANTAGE_API_KEY: KY71G44UNO4W4XC9
+    volumes:
+      - ./workspace:/opt/dagster/app
+      - dagster_home:/opt/dagster/home
+    command: ["dagster-daemon", "run"]
+
+volumes:
+  pgdata:
+  dagster_home:
